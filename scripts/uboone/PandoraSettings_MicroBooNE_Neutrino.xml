@@ -3,7 +3,7 @@
 <pandora>
     <!-- GLOBAL SETTINGS -->
     <IsMonitoringEnabled>true</IsMonitoringEnabled>
-    <ShouldDisplayAlgorithmInfo>false</ShouldDisplayAlgorithmInfo>
+    <ShouldDisplayAlgorithmInfo>true</ShouldDisplayAlgorithmInfo>
     <SingleHitTypeClusteringMode>true</SingleHitTypeClusteringMode>
 
     <!-- PLUGIN SETTINGS -->
@@ -351,13 +351,13 @@
         <UseTrueNeutrinosOnly>true</UseTrueNeutrinosOnly>
         <PrintAllToScreen>true</PrintAllToScreen>
         <PrintMatchingToScreen>true</PrintMatchingToScreen>
-        <VisualizeMatching>false</VisualizeMatching>
+        <VisualizeMatching>true</VisualizeMatching>
         <VisualizeVertices>true</VisualizeVertices>
         <VisualizeRemnants>true</VisualizeRemnants>
         <VisualizeGaps>false</VisualizeGaps>
         <MatchingMinPrimaryHits>15</MatchingMinPrimaryHits>
         <MatchingMinSharedHits>5</MatchingMinSharedHits>
-        <WriteToTree>true</WriteToTree>
+        <WriteToTree>false</WriteToTree>
         <OutputTree>Validation</OutputTree>
         <OutputFile>Validation_1004.root</OutputFile>
     </algorithm>
