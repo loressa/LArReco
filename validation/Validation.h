@@ -95,7 +95,7 @@ public:
     unsigned int            m_nMatch1;                  ///< The number of times the primary has 1 pfo matches
     unsigned int            m_nMatch2;                  ///< The number of times the primary has 2 pfo matches
     unsigned int            m_nMatch3Plus;              ///< The number of times the primary has 3 or more pfo matches
-    unsigned int            m_misID;                    ///< The number of times the primary was track/shower misidentified
+    unsigned int            m_correctId;                ///< The number of times the primary particle identifcation was correct
 };
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -307,8 +307,8 @@ public:
     unsigned int            m_nBestRecoHits;            ///< The number of hits in the best matched pfo
     float                   m_bestCompleteness;         ///< The best match pfo is determined by the best completeness (most matched hits)
     float                   m_bestMatchPurity;          ///< The purity of the best matched pfo
-    bool                    m_isTrackLike;              ///< The true track/shower identity of the primary 
-    bool                    m_isMisID;                  ///< Whether it has been track/shower misidentified
+    bool                    m_isCorrectID;              ///< Whether it has been track/shower misidentified - best match
+    bool                    m_partCorrectID;              ///< Whether it has been track/shower misidentified - any match
 };
 
 typedef std::map<ExpectedPrimary, PrimaryResult> PrimaryResultMap;
@@ -338,6 +338,11 @@ public:
     SimpleThreeVector       m_vertexOffset;             ///< The vertex offset
     float                   m_trueVtxShwDistance;       ///< The true distance between interaction vertex and shower vertex
     float                   m_recoVtxShwDistance;       ///< The reco distance between interaction vertex and shower vertex
+	int                     m_nTrueTracks;
+	int                     m_nTrueShowers;
+	int                     m_nRecoTracks;
+	int                     m_nRecoShowers;
+	int                     m_nCorrectID;
 };
 
 typedef std::vector<EventResult> EventResultList; // ATTN Not terribly efficient, but that's not the main aim here
@@ -360,20 +365,17 @@ public:
     PrimaryHistogramCollection();
 
     TH1F                   *m_hHitsAll;                 ///<
-    TH1F                   *m_hNCorrectEvents;          ///<      
-    TH1F                   *m_hNEvents;                 ///<      
-    TH1F                   *m_hNTracks;                 ///<      
-    TH1F                   *m_hNShowers;                ///<      
-    TH1F                   *m_hNTracksMisID;            ///<      
-    TH1F                   *m_hNShowersMisID;           ///<      
+	TH1F                   *m_hCorrectID;
+	TH1F                   *m_hHitsEfficiencyCorrectID;
+	TH1F                   *m_hHitsEfficiencyBestCorrectID;
     TH1F                   *m_hHitsEfficiency;          ///<
-    TH1F                   *m_hHitsMisID;               ///<
     TH1F                   *m_hMomentumAll;             ///<
     TH1F                   *m_hMomentumEfficiency;      ///<
     TH1F                   *m_hAngleAll;                ///<
     TH1F                   *m_hAngleEfficiency;         ///<
     TH1F                   *m_hCompleteness;            ///<
     TH1F                   *m_hPurity;                  ///<
+
     TH2F                   *m_hNPfosVsPTot;             ///<
     TH2F                   *m_hBestCompVsPTot;          ///<
 };
@@ -394,12 +396,15 @@ public:
      */
     EventHistogramCollection();
 
-    TH1F                   *m_hNEvents;                 ///<  
     TH1F                   *m_hNCorrectEvents;          ///<  
-    TH1F                   *m_hNTracks;                 ///<
-    TH1F                   *m_hNShowers;                ///<
-    TH1F                   *m_hNTracksMisID;            ///<
-    TH1F                   *m_hNShowersMisID;           ///<
+	TH1F                   *m_hNCorrectCorrectIDEvents;    
+    TH1F                   *m_hNEvents;                 ///<      
+    TH1F                   *m_hNTrueTracks;                 ///<      
+    TH1F                   *m_hNTrueShowers;                ///<      
+	TH1F                   *m_hNRecoTracks;                 ///<      
+    TH1F                   *m_hNRecoShowers;                ///<      
+    TH2F                   *m_hNRecoTracksVsTrueTracks;
+    TH2F                   *m_hNRecoShowersVsTrueShowers;
     TH1F                   *m_hVtxDeltaX;               ///< 
     TH1F                   *m_hVtxDeltaY;               ///< 
     TH1F                   *m_hVtxDeltaZ;               ///< 
@@ -571,6 +576,16 @@ bool HasMatch(const SimpleMCPrimary &simpleMCPrimary, const PfoMatchingMap &pfoM
 bool IsGoodMatch(const SimpleMCPrimary &simpleMCPrimary, const SimpleMatchedPfo &simpleMatchedPfo, const Parameters &parameters);
 
 /**
+ *  @brief  Whether a provided mc primary and pfo are deemed to have a good particle id match
+ * 
+ *  @param  simpleMCPrimary the simple mc primary
+ *  @param  simpleMatchedPfo the simple matched pfo
+ * 
+ *  @return boolean
+ */
+bool IsGoodParticleIdMatch(const SimpleMCPrimary &simpleMCPrimary, const SimpleMatchedPfo &simpleMatchedPfo);
+
+/**
  *  @brief  Print matching details to screen for a simple mc event
  * 
  *  @param  simpleMCEvent the simple mc event
@@ -681,7 +696,7 @@ void FillPrimaryHistogramCollection(const std::string &histPrefix, const Primary
  *  @param  eventResult the event result
  *  @param  eventHistogramCollection the event histogram collection
  */
-void FillEventHistogramCollection(const std::string &histPrefix, const bool isCorrect, const EventResult &eventResult, EventHistogramCollection &eventHistogramCollection, const int nTracks, const int nShowers, const int nTracksMisID, const int nShowersMisID);
+void FillEventHistogramCollection(const std::string &histPrefix, const bool isCorrect, const EventResult &eventResult, EventHistogramCollection &eventHistogramCollection);
 
 /**
  *  @brief  Process histograms stored in the provided map e.g. calculating final efficiencies, normalising, etc.
@@ -690,11 +705,6 @@ void FillEventHistogramCollection(const std::string &histPrefix, const bool isCo
  */
 void ProcessHistogramCollections(const InteractionPrimaryHistogramMap &interactionPrimaryHistogramMap);
 
-/**
- *  @brief  Process histograms stored in the provided histogram collection for the event
- * 
- *  @param  histogramCollection the event histogram collection
- */
 void ProcessHistogramCollections(const EventHistogramCollection &histogramCollection);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -742,7 +752,7 @@ CountingDetails::CountingDetails() :
     m_nMatch1(0),
     m_nMatch2(0),
     m_nMatch3Plus(0),
-    m_misID(0)
+    m_correctId(0)
 {
 }
 
@@ -758,8 +768,8 @@ PrimaryResult::PrimaryResult() :
     m_nBestRecoHits(0),
     m_bestCompleteness(0.f),
     m_bestMatchPurity(0.f),
-    m_isTrackLike(true),
-    m_isMisID(false)
+      m_isCorrectID(false),
+      m_partCorrectID(false)
 {
 }
 
@@ -776,7 +786,12 @@ EventResult::EventResult() :
     m_neutrinoCompleteness(-1.f),
     m_vertexOffset(-999.f, -999.f, -999.f),
     m_trueVtxShwDistance(std::numeric_limits<float>::max()),
-    m_recoVtxShwDistance(std::numeric_limits<float>::max())
+    m_recoVtxShwDistance(std::numeric_limits<float>::max()),
+	m_nTrueTracks(0),
+	m_nTrueShowers(0),
+	m_nRecoTracks(0),
+	m_nRecoShowers(0),
+	m_nCorrectID(0)
 {
 }
 
@@ -784,15 +799,11 @@ EventResult::EventResult() :
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 PrimaryHistogramCollection::PrimaryHistogramCollection() :
+    m_hCorrectID(NULL),
     m_hHitsAll(NULL),
-    m_hNCorrectEvents(NULL),
-    m_hNEvents(NULL),
-    m_hNTracks(NULL),
-    m_hNShowers(NULL),
-    m_hNTracksMisID(NULL),
-    m_hNShowersMisID(NULL),
     m_hHitsEfficiency(NULL),
-    m_hHitsMisID(NULL),  
+	m_hHitsEfficiencyCorrectID(NULL),
+	m_hHitsEfficiencyBestCorrectID(NULL),
     m_hMomentumAll(NULL),
     m_hMomentumEfficiency(NULL),
     m_hAngleAll(NULL),
@@ -801,6 +812,7 @@ PrimaryHistogramCollection::PrimaryHistogramCollection() :
     m_hPurity(NULL),
     m_hNPfosVsPTot(NULL),
     m_hBestCompVsPTot(NULL)
+	
 {
 }
 
@@ -808,13 +820,16 @@ PrimaryHistogramCollection::PrimaryHistogramCollection() :
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 EventHistogramCollection::EventHistogramCollection() :
-    m_hNEvents(NULL),
+	m_hNEvents(NULL),
     m_hNCorrectEvents(NULL),
-    m_hNTracks(NULL),
-    m_hNShowers(NULL),
-    m_hNTracksMisID(NULL),
-    m_hNShowersMisID(NULL),
-    m_hVtxDeltaX(NULL),
+	m_hNCorrectCorrectIDEvents(NULL),
+	m_hNTrueTracks(NULL),
+	m_hNRecoTracks(NULL),
+	m_hNTrueShowers(NULL),
+	m_hNRecoShowers(NULL),
+	  m_hNRecoTracksVsTrueTracks(NULL),
+	  m_hNRecoShowersVsTrueShowers(NULL),
+	m_hVtxDeltaX(NULL),
     m_hVtxDeltaY(NULL),
     m_hVtxDeltaZ(NULL),
     m_hVtxDeltaR(NULL),
