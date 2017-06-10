@@ -281,6 +281,14 @@ enum InteractionType
     CCCOH,
     NCCOH,
     OTHER_INTERACTION,
+	CC_NUMU, //ATTN use carefully, inclusive!
+	CC_NUE, //ATTN use carefully, inclusive!
+	NC_NUMU, //ATTN use carefully, inclusive!
+	NC_NUE, //ATTN use carefully, inclusive!
+	CCDIS_NUMU, //ATTN use carefully, inclusive!
+	CCDIS_NUE, //ATTN use carefully, inclusive!
+	NCDIS_NUMU, //ATTN use carefully, inclusive!
+	NCDIS_NUE, //ATTN use carefully, inclusive!
     ALL_INTERACTIONS // ATTN use carefully!
 };
 
@@ -308,7 +316,7 @@ public:
     float                   m_bestCompleteness;         ///< The best match pfo is determined by the best completeness (most matched hits)
     float                   m_bestMatchPurity;          ///< The purity of the best matched pfo
     bool                    m_isCorrectID;              ///< Whether it has been track/shower misidentified - best match
-    bool                    m_partCorrectID;              ///< Whether it has been track/shower misidentified - any match
+    bool                    m_anyMatchCorrectID;              ///< Whether it has been track/shower misidentified - any match
 };
 
 typedef std::map<ExpectedPrimary, PrimaryResult> PrimaryResultMap;
@@ -329,6 +337,7 @@ public:
     // ATTN Put items to count on a per-event basis here
     int                     m_fileIdentifier;           ///< The file identifier
     int                     m_eventNumber;              ///< The event number
+	int                     m_mcNeutrinoPdg;
     int                     m_mcNeutrinoNuance;         ///< The mc neutrino nuance code (interaction type details)
     int                     m_nRecoNeutrinos;           ///< The number of reconstructed neutrinos
     int                     m_nTrueNeutrinos;           ///< The number of true neutrinos
@@ -707,6 +716,12 @@ void ProcessHistogramCollections(const InteractionPrimaryHistogramMap &interacti
 
 void ProcessHistogramCollections(const EventHistogramCollection &histogramCollection);
 
+bool IsCCNotDIS(const int &nuanceCode);
+bool IsNCNotDIS(const int &nuanceCode);
+bool IsCCDIS(const int &nuanceCode);
+bool IsNCDIS(const int &nuanceCode);
+
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -769,7 +784,7 @@ PrimaryResult::PrimaryResult() :
     m_bestCompleteness(0.f),
     m_bestMatchPurity(0.f),
       m_isCorrectID(false),
-      m_partCorrectID(false)
+      m_anyMatchCorrectID(false)
 {
 }
 
@@ -779,6 +794,7 @@ PrimaryResult::PrimaryResult() :
 EventResult::EventResult() :
     m_fileIdentifier(-1),
     m_eventNumber(-1),
+	m_mcNeutrinoPdg(-1),
     m_mcNeutrinoNuance(-1),
     m_nRecoNeutrinos(0),
     m_nTrueNeutrinos(0),
@@ -1009,6 +1025,14 @@ std::string ToString(const InteractionType interactionType)
     case NCDIS_P_P_P_P_P_PIZERO: return "NCDIS_P_P_P_P_P_PIZERO";
     case CCCOH: return "CCCOH";
     case NCCOH: return "NCCOH";
+	case CC_NUMU: return "CC_NUMU";
+	case CCDIS_NUMU: return "CCDIS_NUMU";
+	case NC_NUMU: return "NC_NUMU";
+	case NCDIS_NUMU: return "NCDIS_NUMU";
+	case CC_NUE: return "CC_NUE";
+	case CCDIS_NUE: return "CCDIS_NUE";
+	case NC_NUE: return "NC_NUE";
+	case NCDIS_NUE: return "NCDIS_NUE";
     case OTHER_INTERACTION: return "OTHER_INTERACTION";
     case ALL_INTERACTIONS: return "ALL_INTERACTIONS";
     default: return "UNKNOWN";

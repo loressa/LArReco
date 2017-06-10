@@ -44,6 +44,7 @@ void Validation(const std::string &inputFiles, const Parameters &parameters, con
 
     int nEvents(0), nProcessedEvents(0);
     
+	//for (int iEntry = 0; iEntry < 50; )
     for (int iEntry = 0; iEntry < pTChain->GetEntries(); )
     {
         SimpleMCEvent simpleMCEvent;
@@ -525,6 +526,7 @@ void CountPfoMatches(const SimpleMCEvent &simpleMCEvent, const PfoMatchingMap &p
     EventResult eventResult;
     eventResult.m_fileIdentifier = simpleMCEvent.m_fileIdentifier;
     eventResult.m_eventNumber = simpleMCEvent.m_eventNumber;
+	eventResult.m_mcNeutrinoPdg = simpleMCEvent.m_mcNeutrinoPdg;
     eventResult.m_mcNeutrinoNuance = simpleMCEvent.m_mcNeutrinoNuance;
     eventResult.m_nRecoNeutrinos = simpleMCEvent.m_nRecoNeutrinos;
     eventResult.m_nTrueNeutrinos = simpleMCEvent.m_nMCNeutrinos;
@@ -561,7 +563,7 @@ void CountPfoMatches(const SimpleMCEvent &simpleMCEvent, const PfoMatchingMap &p
 		{
 			++nTrueShowers;
 		}
-		bool isCorrectParticleId(false), isPartCorrectId(false);
+		bool isCorrectParticleId(false), anyMatchCorrectId(false);
 
         for (SimpleMatchedPfoList::const_iterator mIter = simpleMCPrimary.m_matchedPfoList.begin(); mIter != simpleMCPrimary.m_matchedPfoList.end(); ++mIter)
         {
@@ -587,6 +589,8 @@ void CountPfoMatches(const SimpleMCEvent &simpleMCEvent, const PfoMatchingMap &p
 
                 const float purity((simpleMatchedPfo.m_nPfoHitsTotal > 0) ? static_cast<float>(simpleMatchedPfo.m_nMatchedHitsTotal) / static_cast<float>(simpleMatchedPfo.m_nPfoHitsTotal) : 0);
                 const float completeness((simpleMCPrimary.m_nMCHitsTotal > 0) ? static_cast<float>(simpleMatchedPfo.m_nMatchedHitsTotal) / static_cast<float>(simpleMCPrimary.m_nMCHitsTotal) : 0);
+				if(IsGoodParticleIdMatch(simpleMCPrimary, simpleMatchedPfo))
+					anyMatchCorrectId = true;
 
                 if (completeness > bestCompleteness)
                 {
@@ -595,8 +599,8 @@ void CountPfoMatches(const SimpleMCEvent &simpleMCEvent, const PfoMatchingMap &p
                     nBestMatchedHits = simpleMatchedPfo.m_nMatchedHitsTotal;
                     nBestRecoHits = simpleMatchedPfo.m_nPfoHitsTotal;
                     isCorrectParticleId = IsGoodParticleIdMatch(simpleMCPrimary, simpleMatchedPfo);
-		    if(isCorrectParticleId)
-		      isPartCorrectId = true; // this is just to know if any of the matches had the correct ID 
+		   // if(isCorrectParticleId)
+		    //  anyMatchCorrectId = true; // this is just to know if any of the matches had the correct ID 
                 }
             }
         }
@@ -611,8 +615,8 @@ void CountPfoMatches(const SimpleMCEvent &simpleMCEvent, const PfoMatchingMap &p
             ++countingDetails.m_correctId;
 	    primaryResult.m_isCorrectID = true;
 	  }	
-	if (isPartCorrectId)
-	  primaryResult.m_partCorrectID = true;
+	if (anyMatchCorrectId)
+	  primaryResult.m_anyMatchCorrectID = true;
 	
 	
         primaryResult.m_nPfoMatches = nMatches;
@@ -628,6 +632,9 @@ void CountPfoMatches(const SimpleMCEvent &simpleMCEvent, const PfoMatchingMap &p
         primaryResult.m_nBestRecoHits = nBestRecoHits;
 		
 			//LORENA
+			
+			//if(isCorrectParticleId!=anyMatchCorrectId)
+			//	std::cout << "This primary "<< absMCPdgCode << " has " << anyMatchCorrectId << " any correct matches but " << isCorrectParticleId << " correct best match " << std::endl;
 
 	//std::cout << " primaryResult.m_nPfoMatches =" << primaryResult.m_nPfoMatches << " pfo correct ID = " << primaryResult.m_isCorrectID << std::endl;
 	eventResult.m_nRecoTracks += nTrackMatches;
@@ -1181,7 +1188,15 @@ void AnalyseInteractionEventResultMap(const InteractionEventResultMap &interacti
 
         for (EventResultList::const_iterator eIter = eventResultList.begin(), eIterEnd = eventResultList.end(); eIter != eIterEnd; ++eIter)
         {
-            const PrimaryResultMap &primaryResultMap(eIter->m_primaryResultMap);
+            int nuanceCode = eIter->m_mcNeutrinoNuance;
+			int nuPDG = eIter->m_mcNeutrinoPdg;	
+			//if(std::abs(nuPDG)!=14)
+				//std::cout << " nuPDG =" << nuPDG << " and nuanceCode = " << nuanceCode << std::endl;
+
+//std::cout << " Nuance code = " << nuanceCode << " IsCC? " << IsCCNotDIS(nuanceCode) << " or NC?" << IsNCNotDIS(nuanceCode) 
+//<< " or CCDIS " << IsCCDIS(nuanceCode) << " or IsNCDIS "<< IsNCDIS(nuanceCode) << std::endl;
+			
+			const PrimaryResultMap &primaryResultMap(eIter->m_primaryResultMap);
             bool isCorrect(!primaryResultMap.empty());
 
             for (PrimaryResultMap::const_iterator pIter = primaryResultMap.begin(), pIterEnd = primaryResultMap.end(); pIter != pIterEnd; ++pIter)
@@ -1213,6 +1228,70 @@ void AnalyseInteractionEventResultMap(const InteractionEventResultMap &interacti
                 const std::string histPrefixAll(parameters.m_histPrefix + ToString(ALL_INTERACTIONS) + "_");
                 EventHistogramCollection &histogramCollectionAll(interactionEventHistogramMap[ALL_INTERACTIONS]);
                 FillEventHistogramCollection(histPrefixAll, isCorrect, *eIter, histogramCollectionAll);
+				
+				//LORENA
+				if(IsCCNotDIS(nuanceCode))
+				{
+					if (std::abs(nuPDG)==12)
+					{
+						const std::string histPrefixAll(parameters.m_histPrefix + ToString(CC_NUE) + "_");
+						EventHistogramCollection &histogramCollectionCCNUE(interactionEventHistogramMap[CC_NUE]);
+						FillEventHistogramCollection(histPrefixAll, isCorrect, *eIter, histogramCollectionCCNUE);
+					}
+					else if (std::abs(nuPDG)==14)
+					{
+						const std::string histPrefixAll(parameters.m_histPrefix + ToString(CC_NUMU) + "_");
+						EventHistogramCollection &histogramCollectionCCNUMU(interactionEventHistogramMap[CC_NUMU]);
+						FillEventHistogramCollection(histPrefixAll, isCorrect, *eIter, histogramCollectionCCNUMU);
+					}
+				}
+				else if(IsNCNotDIS(nuanceCode))
+				{
+					if (std::abs(nuPDG)==12)
+					{
+						const std::string histPrefixAll(parameters.m_histPrefix + ToString(NC_NUE) + "_");
+						EventHistogramCollection &histogramCollectionNCNUE(interactionEventHistogramMap[NC_NUE]);
+						FillEventHistogramCollection(histPrefixAll, isCorrect, *eIter, histogramCollectionNCNUE);
+					}
+					else if (std::abs(nuPDG)==14)
+					{
+						const std::string histPrefixAll(parameters.m_histPrefix + ToString(NC_NUMU) + "_");
+						EventHistogramCollection &histogramCollectionNCNUMU(interactionEventHistogramMap[NC_NUMU]);
+						FillEventHistogramCollection(histPrefixAll, isCorrect, *eIter, histogramCollectionNCNUMU);
+					}
+				}
+				else if(IsCCDIS(nuanceCode))
+				{
+					if (std::abs(nuPDG)==12)
+					{
+						const std::string histPrefixAll(parameters.m_histPrefix + ToString(CCDIS_NUE) + "_");
+						EventHistogramCollection &histogramCollectionCCDISNUE(interactionEventHistogramMap[CCDIS_NUE]);
+						FillEventHistogramCollection(histPrefixAll, isCorrect, *eIter, histogramCollectionCCDISNUE);
+					}
+					else if (std::abs(nuPDG)==14)
+					{
+						const std::string histPrefixAll(parameters.m_histPrefix + ToString(CCDIS_NUMU) + "_");
+						EventHistogramCollection &histogramCollectionCCDISNUMU(interactionEventHistogramMap[CCDIS_NUMU]);
+						FillEventHistogramCollection(histPrefixAll, isCorrect, *eIter, histogramCollectionCCDISNUMU);
+					}
+				}
+				else if(IsNCDIS(nuanceCode))
+				{
+					if (std::abs(nuPDG)==12)
+					{
+						const std::string histPrefixAll(parameters.m_histPrefix + ToString(NCDIS_NUE) + "_");
+						EventHistogramCollection &histogramCollectionNCDISNUE(interactionEventHistogramMap[NCDIS_NUE]);
+						FillEventHistogramCollection(histPrefixAll, isCorrect, *eIter, histogramCollectionNCDISNUE);
+					}
+					else if (std::abs(nuPDG)==14)
+					{
+						const std::string histPrefixAll(parameters.m_histPrefix + ToString(NCDIS_NUMU) + "_");
+						EventHistogramCollection &histogramCollectionNCDISNUMU(interactionEventHistogramMap[NCDIS_NUMU]);
+						FillEventHistogramCollection(histPrefixAll, isCorrect, *eIter, histogramCollectionNCDISNUMU);
+					}
+				}
+				//else 
+				//	std::cout << "somethig went wrong with" << nuanceCode << std::endl;
             }
 
             if (isCorrect)
@@ -1245,8 +1324,27 @@ void AnalyseInteractionEventResultMap(const InteractionEventResultMap &interacti
 			EventHistogramCollection &histogramCollection(interactionEventHistogramMap[interactionType]);
 			ProcessHistogramCollections(histogramCollection);
 		}
+		//LORENA
 		EventHistogramCollection &histogramCollectionAll(interactionEventHistogramMap[ALL_INTERACTIONS]);
 		ProcessHistogramCollections(histogramCollectionAll);
+		/*
+		EventHistogramCollection &histogramCollectionNCDISNUMU(interactionEventHistogramMap[NCDIS_NUMU]);
+		ProcessHistogramCollections(histogramCollectionNCDISNUMU);
+		EventHistogramCollection &histogramCollectionCCDISNUMU(interactionEventHistogramMap[CCDIS_NUMU]);
+		ProcessHistogramCollections(histogramCollectionCCDISNUMU);
+		EventHistogramCollection &histogramCollectionNCNUMU(interactionEventHistogramMap[NC_NUMU]);
+		ProcessHistogramCollections(histogramCollectionNCNUMU);
+		EventHistogramCollection &histogramCollectionCCNUMU(interactionEventHistogramMap[CC_NUMU]);
+		ProcessHistogramCollections(histogramCollectionCCNUMU);
+		
+		EventHistogramCollection &histogramCollectionNCDISNUE(interactionEventHistogramMap[NCDIS_NUE]);
+		ProcessHistogramCollections(histogramCollectionNCDISNUE);
+		EventHistogramCollection &histogramCollectionCCDISNUE(interactionEventHistogramMap[CCDIS_NUE]);
+		ProcessHistogramCollections(histogramCollectionCCDISNUE);
+		EventHistogramCollection &histogramCollectionNCNUE(interactionEventHistogramMap[NC_NUE]);
+		ProcessHistogramCollections(histogramCollectionNCNUE);
+		EventHistogramCollection &histogramCollectionCCNUE(interactionEventHistogramMap[CC_NUE]);
+		ProcessHistogramCollections(histogramCollectionCCNUE);*/
       }
 
 
@@ -1255,9 +1353,43 @@ void AnalyseInteractionEventResultMap(const InteractionEventResultMap &interacti
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
+bool IsCCNotDIS(const int &nuanceCode)
+{
+	return((nuanceCode==1001)||((nuanceCode>=1003)&&(nuanceCode<=1005))||((nuanceCode>=1010)&&(nuanceCode<=1012))
+	||((nuanceCode>=1017)&&(nuanceCode<=1021))||((nuanceCode>=1028)&&(nuanceCode<=1032))||((nuanceCode>=1039)&&(nuanceCode<=1041))
+	||((nuanceCode>=1046)&&(nuanceCode<=1048))||((nuanceCode>=1053)&&(nuanceCode<=1055))||((nuanceCode>=1060)&&(nuanceCode<=1062))
+	||(nuanceCode==1067)||(nuanceCode==1070)||(nuanceCode==1073)||(nuanceCode==1076)||(nuanceCode==1079)||(nuanceCode==1080)
+	||(nuanceCode==1085)||(nuanceCode==1086)||(nuanceCode==1093)||(nuanceCode==1095)||(nuanceCode==1097)); 
+	//ATTN not only usual modes (qe and pi productions) rho, kaons, eta, etc. added, see nuance_defaults.cards
+	//TODO move to enumeration?
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+bool IsNCNotDIS(const int &nuanceCode) 
+{
+	return((nuanceCode==1002)||((nuanceCode>=1006)&&(nuanceCode<=1009))||((nuanceCode>=1013)&&(nuanceCode<=1016))
+	||((nuanceCode>=1022)&&(nuanceCode<=1027))||((nuanceCode>=1033)&&(nuanceCode<=1038))||((nuanceCode>=1042)&&(nuanceCode<=1045))
+	||((nuanceCode>=1049)&&(nuanceCode<=1052))||((nuanceCode>=1056)&&(nuanceCode<=1059))||((nuanceCode>=1063)&&(nuanceCode<=1066))
+	||(nuanceCode==1068)||(nuanceCode==1069)||(nuanceCode==1071)||(nuanceCode==1072)||(nuanceCode==1074)||(nuanceCode==1075)
+	||(nuanceCode==1077)||(nuanceCode==1078)||((nuanceCode>=1081)&&(nuanceCode<=1084))||((nuanceCode>=1087)&&(nuanceCode<=1090))
+	||(nuanceCode==1094)||(nuanceCode==1096));
+}
+//------------------------------------------------------------------------------------------------------------------------------------------
+bool IsCCDIS(const int &nuanceCode) 
+{
+	return(nuanceCode==1091);
+}
+//------------------------------------------------------------------------------------------------------------------------------------------
+bool IsNCDIS(const int &nuanceCode) 
+{
+	return(nuanceCode==1092);
+}
+//------------------------------------------------------------------------------------------------------------------------------------------
 
 void FillEventHistogramCollection(const std::string &histPrefix, const bool isCorrect, const EventResult &eventResult, EventHistogramCollection &eventHistogramCollection)
 {
+	
+	
 	 if(!eventHistogramCollection.m_hNEvents)                                                                                                            
     {                                                                                                                                                
       eventHistogramCollection.m_hNEvents = new TH1F((histPrefix + "NEvents").c_str(), "", 1, 0., 1.0);                                               
@@ -1573,7 +1705,7 @@ void FillPrimaryHistogramCollection(const std::string &histPrefix, const Primary
         primaryHistogramCollection.m_hPurity->Fill(primaryResult.m_bestMatchPurity);
 		if(primaryResult.m_isCorrectID)
 			primaryHistogramCollection.m_hHitsEfficiencyBestCorrectID->Fill(primaryResult.m_nTrueHits);
-	if (primaryResult.m_partCorrectID)
+	if (primaryResult.m_anyMatchCorrectID)
 	  primaryHistogramCollection.m_hHitsEfficiencyCorrectID->Fill(primaryResult.m_nTrueHits); 
     }
 }
@@ -1583,6 +1715,7 @@ void FillPrimaryHistogramCollection(const std::string &histPrefix, const Primary
 
 void ProcessHistogramCollections(const EventHistogramCollection &histogramCollection)
 {
+	
 	histogramCollection.m_hNEvents->Write();
 	histogramCollection.m_hNCorrectEvents->Write();
 	histogramCollection.m_hNCorrectCorrectIDEvents->Write();
@@ -1600,7 +1733,7 @@ void ProcessHistogramCollections(const EventHistogramCollection &histogramCollec
 	histogramCollection.m_hNeutrinoCompleteness->Write();
 	histogramCollection.m_hNRecoNeutrinos->Write();
 
-	}
+}
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
